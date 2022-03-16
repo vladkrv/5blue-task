@@ -1,6 +1,10 @@
 import jsPDF from "jspdf";
 import { useCallback, useState } from "react";
+import { FileUploader } from "react-drag-drop-files";
 import "./App.css";
+
+// Allowed file types for Drag and Drop zone
+const fileTypes = ["JPG", "JPEG", "PNG"];
 
 // New class with additional fields for Image
 class CustomImage extends Image {
@@ -40,11 +44,6 @@ const A4_PAPER_DIMENSIONS = {
 };
 
 const A4_PAPER_RATIO = A4_PAPER_DIMENSIONS.width / A4_PAPER_DIMENSIONS.height;
-
-// interface ImageDimension {
-//   width: number;
-//   height: number;
-// }
 
 // Calculates the best possible position of an image on the A4 paper format,
 // so that the maximal area of A4 is used and the image ratio is preserved.
@@ -118,11 +117,13 @@ function App() {
   // State for uploaded images
   const [uploadedImages, setUploadedImages] = useState([]);
 
+  // State for force reload flag
+  // TODO: fork & rewrite <FileUploader /> to avoid this crutch
+  const [flag, setFlag] = useState(false);
+
   const handleImageUpload = useCallback(
-    (event) => {
-      // `event.target.files` is of type `FileList`,
-      // we convert it to Array for easier manipulation.
-      const fileList = event.target.files;
+    (fileList) => {
+      // we convert fileList to Array for easier manipulation.
       const fileArray = fileList ? Array.from(fileList) : [];
 
       // Uploaded images are read and the app state is updated.
@@ -150,48 +151,61 @@ function App() {
   return (
     <>
       <h1>Convert images to PDFs</h1>
-
+      {/* Drag and Drop zone*/}
+      <FileUploader
+        // to rerender on uploadedImages change
+        key={flag}
+        // ^this should be refactored
+        handleChange={handleImageUpload}
+        name="file"
+        types={fileTypes}
+        hoverTitle="Drop here!"
+        maxSize={2}
+        multiple
+      />
       {/* Overview of uploaded images */}
-      <div className="images-container">
-        {uploadedImages.length > 0 ? (
-          uploadedImages.map((image) => (
-            <img
-              key={image.src}
-              src={image.src}
-              className="uploaded-image"
-              alt={"Error loading preview"}
-            />
-          ))
-        ) : (
-          <p>Upload some images...</p>
-        )}
-      </div>
-
-      {/* Buttons for uploading images and generating a PDF */}
-      <div className="buttons-container">
-        {/* Uploads images */}
-        <label htmlFor="file-input">
-          <span className="button">Upload images</span>
-          <input
-            id="file-input"
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            // Native file input is hidden only for styling purposes
-            style={{ display: "none" }}
-            multiple
-          />
-        </label>
-
-        {/* Generates PDF */}
-        <button
-          onClick={handleGeneratePdfFromImages}
-          className="button"
-          disabled={uploadedImages.length === 0}
-        >
-          Generate PDF
-        </button>
-      </div>
+      <h2>Overview of uploaded images</h2>
+      {uploadedImages.length > 0 ? (
+        <>
+          <div className="images-container">
+            {uploadedImages.map((image) => (
+              <img
+                key={image.src}
+                src={image.src}
+                className="uploaded-image"
+                alt={"Error loading preview"}
+              />
+            ))}
+          </div>
+          {/* Buttons for resetting images and generating a PDF */}
+          <div className="buttons-container">
+            {/* Resets uploaded images */}
+            {uploadedImages.length !== 0 && (
+              <button
+                onClick={() => {
+                  setUploadedImages([]);
+                  setFlag((prev) => !prev);
+                }}
+                className="button"
+              >
+                Reset
+              </button>
+            )}
+            {/* Generates PDF */}
+            <button
+              onClick={() => {
+                handleGeneratePdfFromImages();
+                setFlag((prev) => !prev);
+              }}
+              className="button"
+            >
+              Export to PDF
+            </button>
+          </div>
+        </>
+      ) : (
+        <p>Upload some images...</p>
+      )}
     </>
   );
 }
